@@ -1,9 +1,15 @@
 #! /usr/bin/env python
 
+import matplotlib
+# matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
+import sys
 import numpy as np
 import pandas as pd
 
 from tqdm import tqdm
+from itertools import islice
 from sklearn.metrics import r2_score
 from scipy.optimize import curve_fit
 
@@ -101,6 +107,7 @@ def fit_exp(df_exp, title=None, dmin=None, dmax=None):
     print(df_exp)
     xdata = df_exp.DOSE.astype(np.float)
     ydata = df_exp.GROWTH.astype(np.float)
+    # ydata = df_exp.GROWTH.clip(lower=0, upper=1.0).astype(np.float)
 
     # print(xdata)
     # print(ydata)
@@ -184,6 +191,28 @@ def process_df(df, fname, sep='\t', ngroups=None):
     f.close()
 
 
+def process_df_part(df, fname, sep='\t', start=0, count=None):
+    header = None
+    cols = ['SOURCE', 'CELL', 'DRUG', 'STUDY']
+    groups = df.groupby(cols)
+    # count = count or (len(groups) - start)
+    count = count or (4484081 - start)
+    groups = islice(groups, start, start+count)
+    f = open(f'{fname}.{start}', 'w')
+    for name, group in tqdm(groups):
+        # print(name)
+        xdata = group.DOSE.astype(np.float)
+        ydata = group.GROWTH.clip(lower=0, upper=1.0).astype(np.float)
+        popt, pcov = response_curve_fit(xdata, ydata)
+        metrics = compute_fit_metrics(xdata, ydata, popt, pcov)
+        if start == 0 and header is None:
+            header = cols + metrics.index.tolist()
+            print(sep.join(header), file=f)
+        print(sep.join(name), end=sep, file=f)
+        print(sep.join([f'{x:.4g}' for x in metrics]), file=f)
+    f.close()
+
+
 def test():
     df0 = ud.load_single_dose_response(fraction=True)
 
@@ -198,19 +227,35 @@ def test():
 
 
 def process_chem_partner_data():
-    df_cp = pd.read_table('pe/ChemPartner_dose_response')
-    df_cp = df_cp[df_cp.DRUG2.isnull() & df_cp.DOSE2.isnull()]
+    df_cp = pd.read_csv('curve/ChemPartner_dose_response', sep='\t')
+    df_cp = df_cp[df_cp.DRUG2.isnull() & df_cp.DOSE2.isnull()].drop(['DRUG2', 'DOSE2'], axis=1)
     df_cp = df_cp.rename(columns={'DRUG1':'DRUG', 'DOSE1':'DOSE'})
+    df_cp.DOSE = -df_cp.DOSE
+    # df_cp.GROWTH = df_cp.GROWTH/100
     df_cp.GROWTH = df_cp.GROWTH/200 + 0.5
 
-    process_df(df_cp, 'pe/ChemPartner_single_response_agg', ngroups=5)
+    # process_df(df_cp, 'curve/ChemPartner_single_response_agg', ngroups=10)
+    process_df(df_cp, 'curve/ChemPartner_single_response_agg.new')
+
+
+def fix_auc_gt_one():
+    dfx = pd.read_table('curve/combined_single_response_agg.0', engine='c', low_memory=False)
+
+
+def notebook():
+    d = pd.read_csv('./curve/combined_single_response_agg', engine='c', sep='\t', low_memory=False)
+    m = 1e-3
+    print(d[(d.AUC < m) & (d.R2fit < m) & (d.EC50se < m)].shape)
+    print(d[(d.AUC < m) & (d.R2fit < m) & (d.EC50se < m)].head())
 
 
 def main():
     df_all = ud.load_single_dose_response(fraction=True)
     df_all.GROWTH = df_all.GROWTH/2 + 0.5
-    # process_df(df_all, 'pe/combined_single_response_agg')
-    process_df(df_all, 'pe/combined_single_response_agg', ngroups=1000)
+    process_df(df_all, 'curve/combined_single_response_agg')
+    # 4484081
+    # process_df_part(df_all, 'curve/combined_single_response_agg.debug', start=0, count=270)
+    # process_df_part(df_all, 'curve/combined_single_response_agg', start=int(sys.argv[1]), count=int(sys.argv[2]))
 
 
 if __name__ == '__main__':
