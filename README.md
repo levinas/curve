@@ -9,6 +9,8 @@ python curve.py --cell LOXIMVI --drug paclitaxel
 
 ![LOXIMVI treated with paclitaxel](/figs/LOXIMVI-paclitaxel.png?raw=true)
 
+![LOXIMVI treated with paclitaxel](/figs/LOXIMVI-paclitaxel-table.png?raw=true)
+
 For all cell line datasets, drug sensitivity is quantified by dose response values that measure the ratio of surviving treated to untreated cells after exposure to a given drug at a given concentration.
 To facilitate comparison across cell lines, all response values were linearly rescaled to share a common range (from 0 to 100).
 PharmacoDB incorporated multiple dose-independent metrics to allow integration of heterogeneous drug response data from the different studies.
