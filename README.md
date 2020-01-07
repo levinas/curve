@@ -1,9 +1,9 @@
 
-## Description
 
 This program fits dose response curves for one or multiple drug screening experiments using a Hill Slope model with 3 bounded parameters [1].
+The program depends on the [Uno data loader](https://github.com/ECP-CANDLE/Benchmarks/blob/master/Pilot1/Uno/uno_data.py) in the [CANDLE](https://github.com/ECP-CANDLE) project.
 
-The following command computes the results on an example melanoma cell line treated with paclitaxel. 
+The following command computes the results on an example melanoma cell line treated with paclitaxel.
 
 ```
 python curve.py --cell LOXIMVI --drug paclitaxel
@@ -21,7 +21,7 @@ The parameters and metrics of the model are as follows:
 * R2fit - R2 score between the unclipped, real growths and fitted growth values
 * AUC1 - area under growth curve for the measured dose range in a study
 * AAC1 - area above growth curve for the measured dose range in a study
-* DDS1 - a more robust variant of AUC1 normalized against dose range [2] 
+* DDS1 - a more robust variant of AUC1 normalized against dose range [2]
 
 ![LOXIMVI treated with paclitaxel](/figs/LOXIMVI-paclitaxel-table.png?raw=true)
 
@@ -29,6 +29,28 @@ For all cell line datasets, drug sensitivity is quantified by dose response valu
 To facilitate comparison across cell lines, all response values were linearly rescaled to share a common range (from 0 to 100).
 PharmacoDB incorporated multiple dose-independent metrics to allow integration of heterogeneous drug response data from the different studies.
 We applied the same method to dose response data from five datasets: NCI60, CCLE, CTRP, GDSC, and gCSI.
+
+To process the integrated multi-study dose response data frame, use the default command:
+```
+python curve.py
+```
+
+### Options
+```
+usage: curve.py [-h] [-c CELL] [-d DRUG] [-s STUDY [STUDY ...]] [--reps REPS]
+                [--start START] [--count COUNT] [--out OUT]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -c CELL, --cell CELL  cell line name
+  -d DRUG, --drug DRUG  drug name
+  -s STUDY [STUDY ...], --study STUDY [STUDY ...]
+                        list of data sources/studies
+  --reps REPS           maximum of replicates to include in plots
+  --start START         start index (0-based)
+  --count COUNT         number of experiments
+  --out OUT             prefix of output file
+```
 
 
 ### References
