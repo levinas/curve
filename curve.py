@@ -3,6 +3,7 @@
 import matplotlib
 # matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import matplotlib.font_manager
 
 import sys
 import argparse
@@ -406,7 +407,6 @@ def main():
     args = parser.parse_args()
 
     df_all = ud.load_single_dose_response(fraction=True)
-    df_all.GROWTH = df_all.GROWTH/2 + 0.5
 
     if args.cell and args.drug:
         plot_curves(df_all, cell=args.cell, drug=args.drug, study=args.study, max_reps=args.reps)
