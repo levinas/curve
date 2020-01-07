@@ -52,6 +52,7 @@ optional arguments:
   --out OUT             prefix of output file
 ```
 
+For more details, see the examples in the [Jupyter notebook](https://github.com/levinas/curve/blob/master/response-curve-fit.ipynb). 
 
 ### References
 1. Petr Smirnov, Victor Kofia, Alexander Maru, Mark Freeman, Chantal Ho, Nehme El-Hachem, George-Alexandru Adam, Wail Ba-alawi, Zhaleh Safikhani, and Benjamin Haibe-Kains. Pharmacodb: an integrative database for mining in vitro anticancer drug screening studies. Nucleic acids research, 46(D1):D994–D1002, 2017.
