@@ -5,6 +5,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 import sys
+import argparse
 import numpy as np
 import pandas as pd
 
@@ -103,7 +104,14 @@ def response_curve_fit(xdata, ydata, bounds=HS_BOUNDS):
     return popt, pcov
 
 
-def fit_exp(df_exp, title=None, dmin=None, dmax=None):
+def fit_exp(df_exp, title=None, dmin=None, dmax=None, save=False):
+    if save:
+        font = {'family' : 'normal',
+                # 'weight' : 'bold',
+                'size'   : 14}
+        matplotlib.rc('font', **font)
+        plt.figure(figsize=(12, 6))
+
     print(df_exp)
     xdata = df_exp.DOSE.astype(np.float)
     ydata = df_exp.GROWTH.astype(np.float)
@@ -130,13 +138,18 @@ def fit_exp(df_exp, title=None, dmin=None, dmax=None):
     plt.xlabel('Dose (-log10(M))')
     plt.ylabel('Growth%')
     plt.title(title)
+    plt.tight_layout()
     plt.legend()
-    plt.show()
+    if save:
+        plt.savefig('exp.png', dpi=360)
+        plt.close()
+    else:
+        plt.show()
 
     return metrics.to_frame(name='metrics').T
 
 
-def fit_response(df_all, cell, drug, source, study=None):
+def fit_response(df_all, cell, drug, source, study=None, save=False):
     cell_ids = ud.cell_name_to_ids(cell) or [cell]
     drug_ids = ud.drug_name_to_ids(drug) or [drug]
 
@@ -152,7 +165,7 @@ def fit_response(df_all, cell, drug, source, study=None):
         title += f' study {study}'
         df_exp = df_exp[df_exp.STUDY == study]
 
-    return fit_exp(df_exp, title)
+    return fit_exp(df_exp, title, save=save)
 
 
 def show_dose_distribution(df_all):
@@ -249,13 +262,161 @@ def notebook():
     print(d[(d.AUC < m) & (d.R2fit < m) & (d.EC50se < m)].head())
 
 
+def fit_exp(df_exp, title=None, dmin=None, dmax=None, save=False):
+    if save:
+        font = {'family' : 'normal',
+                # 'weight' : 'bold',
+                'size'   : 14}
+        matplotlib.rc('font', **font)
+        plt.figure(figsize=(12, 6))
+
+    print(df_exp)
+    xdata = df_exp.DOSE.astype(np.float)
+    ydata = df_exp.GROWTH.astype(np.float)
+    # ydata = df_exp.GROWTH.clip(lower=0, upper=1.0).astype(np.float)
+
+    # print(xdata)
+    # print(ydata)
+
+    popt, pcov = response_curve_fit(xdata, ydata)
+    metrics = compute_fit_metrics(xdata, ydata, popt, pcov)
+
+    if popt is None:
+        return metrics
+
+    dmin = dmin or xdata.min()
+    dmax = dmax or xdata.max()
+    xx = np.linspace(dmin, dmax, 100)
+    yy = response_curve(xx, *popt)
+
+    plt.xlim(dmax, dmin)
+    plt.ylim(0, np.max([105, np.max(yy)]))
+    plt.plot(xx, yy*100, 'r-', label='fit: Einf=%.3f, EC50=%.3f, HS=%.3f' % tuple(popt))
+    plt.plot(xdata, ydata.clip(lower=0, upper=1.0)*100, 'b*', label='')
+    plt.xlabel('Dose (-log10(M))')
+    plt.ylabel('Growth%')
+    plt.title(title)
+    plt.tight_layout()
+    plt.legend()
+    if save:
+        plt.savefig('exp.png', dpi=360)
+        plt.close()
+    else:
+        plt.show()
+
+    return metrics.to_frame(name='metrics').T
+
+
+def get_tableau20_colors():
+    # tableau20 = [(31, 119, 180), (174, 199, 232), (255, 127, 14), (255, 187, 120),
+    #          (44, 160, 44), (152, 223, 138), (214, 39, 40), (255, 152, 150),
+    #          (148, 103, 189), (197, 176, 213), (140, 86, 75), (196, 156, 148),
+    #          (227, 119, 194), (247, 182, 210), (127, 127, 127), (199, 199, 199),
+    #          (188, 189, 34), (219, 219, 141), (23, 190, 207), (158, 218, 229)]
+    tableau20 = [(31, 119, 180), (174, 199, 232), (255, 127, 14), (255, 187, 120),
+                 (148, 103, 189), (44, 160, 44), (214, 39, 40), (255, 152, 150),
+                 (152, 223, 138), (197, 176, 213), (140, 86, 75), (196, 156, 148),
+                 (227, 119, 194), (247, 182, 210), (127, 127, 127), (199, 199, 199),
+                 (188, 189, 34), (219, 219, 141), (23, 190, 207), (158, 218, 229)]
+    # Scale the RGB values to the [0, 1] range, which is the format matplotlib accepts.
+    for i in range(len(tableau20)):
+        r, g, b = tableau20[i]
+        tableau20[i] = (r / 255., g / 255., b / 255.)
+    return tableau20
+
+
+def plot_curves(df_all, cell='LOXIMVI', drug='paclitaxel', study=None, max_reps=2, dmin=4, dmax=10, out=None):
+    cell_ids = ud.cell_name_to_ids(cell)
+    drug_ids = ud.drug_name_to_ids(drug)
+
+    df_exps = df_all[df_all.CELL.isin(cell_ids) & df_all.DRUG.isin(drug_ids)].copy()
+    df_exps.GROWTH = (df_exps.GROWTH/2 + 0.5)
+
+    title = f'{cell} treated with {drug}'
+    out = out or f'{cell}-{drug}'
+
+    # font = {'family': 'normal', 'size': 14}
+    font = {'size': 14}
+    matplotlib.rc('font', **font)
+    plt.figure(figsize=(12, 6))
+    colors = get_tableau20_colors()
+
+    dmin = dmin or df_exps.DOSE.min()
+    dmax = dmax or df_exps.DOSE.max()
+    xx = np.linspace(dmin-0.1, dmax+0.1, 100)
+
+    plt.xlim(dmax+0.1, dmin-0.1)
+    plt.ylim(0, 105)
+    plt.xlabel('Dose (-log10(M))')
+    plt.ylabel('Growth%')
+    plt.title(title)
+
+    df_metrics = None
+    rank = 0
+    order = ['NCI60', 'CTRP', 'GDSC', 'CCLE', 'gCSI']
+    sources = df_exps.SOURCE.unique().tolist() if study is None else study
+    sources = sorted(sources, key=lambda x:order.index(x))
+
+    for source in sources:
+        studies = df_exps[df_exps.SOURCE == source].STUDY.unique()
+        for i, study in enumerate(studies[:max_reps]):
+            df_exp = df_exps[(df_exps.SOURCE == source) & (df_exps.STUDY == study)]
+            xdata = df_exp.DOSE.astype(np.float)
+            ydata = df_exp.GROWTH.astype(np.float)
+            # ydata = df_exp.GROWTH.clip(lower=0, upper=1.0).astype(np.float)
+            popt, pcov = response_curve_fit(xdata, ydata)
+            metrics = compute_fit_metrics(xdata, ydata, popt, pcov)
+            if popt is None:
+                continue
+            color = colors[rank]
+            rank = (rank + 1) % 20
+            yy = response_curve(xx, *popt)
+            label = source
+            if len(studies) > 1:
+                label += f' rep {i+1}'
+            plt.plot(xx, yy*100, '-', color=color, label=label)
+            plt.plot(xdata, ydata.clip(lower=0, upper=1.0)*100, '.', color=color, label='')
+            if df_metrics is None:
+                df_metrics = metrics.to_frame(name=label).T
+            else:
+                df_metrics = pd.concat([df_metrics, metrics.to_frame(name=label).T])
+
+    plt.tight_layout()
+    plt.legend()
+    plt.savefig(f'{out}.png', dpi=360)
+    plt.close()
+
+    df_metrics.index.name = 'Source'
+    df_metrics.to_csv(f'{out}.csv', float_format='%.5g')
+    print(f'Saved {out}.png and {out}.csv.')
+
+    return df_metrics
+
+
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-c', '--cell', help='cell line name')
+    parser.add_argument('-d', '--drug', help='drug name')
+    parser.add_argument('-s', '--study', nargs='+', help='list of data sources/studies')
+    parser.add_argument('--reps', type=int, default=2, help='maximum of replicates to include in plots')
+    parser.add_argument('--start', type=int, default=0, help='start index (0-based)')
+    parser.add_argument('--count', type=int, help='number of experiments')
+    parser.add_argument('--out', help='prefix of output file')
+
+    args = parser.parse_args()
+
     df_all = ud.load_single_dose_response(fraction=True)
     df_all.GROWTH = df_all.GROWTH/2 + 0.5
-    process_df(df_all, 'curve/combined_single_response_agg')
-    # 4484081
-    # process_df_part(df_all, 'curve/combined_single_response_agg.debug', start=0, count=270)
-    # process_df_part(df_all, 'curve/combined_single_response_agg', start=int(sys.argv[1]), count=int(sys.argv[2]))
+
+    if args.cell and args.drug:
+        plot_curves(df_all, cell=args.cell, drug=args.drug, study=args.study, max_reps=args.reps)
+    else:
+        fname = out or 'combined_single_response_agg'
+        process_df_part(df_all, fname, start=args.start, count=args.count)
+        # 4484081
+        # process_df_part(df_all, 'curve/combined_single_response_agg', start=int(sys.argv[1]), count=int(sys.argv[2]))
+        # process_df(df_all, 'curve/combined_single_response_agg')
+        # process_df_part(df_all, 'curve/combined_single_response_agg.debug', start=0, count=270)
 
 
 if __name__ == '__main__':
