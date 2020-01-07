@@ -30,6 +30,10 @@ To facilitate comparison across cell lines, all response values were linearly re
 PharmacoDB incorporated multiple dose-independent metrics to allow integration of heterogeneous drug response data from the different studies.
 We applied the same method to dose response data from five datasets: NCI60, CCLE, CTRP, GDSC, and gCSI.
 
+We look at two confidence metrics to evaluate the quality of the fit: EC50se and R2fit.
+In the examples in Table Y, NCI60 rep 2, CTRP rep1 and CTRP rep2 are pathological cases of curve fitting as they have high standard deviation of estimated EC50 or low R2 score of fit or both.
+IC50 is not always applicable as certain drugs are not effective against cell lines regardless of concentration.
+
 To process the integrated multi-study dose response data frame, use the default command:
 ```
 python curve.py
